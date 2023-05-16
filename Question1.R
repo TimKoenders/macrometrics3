@@ -67,6 +67,10 @@ model3b <- brm(
   cores = 4,
   chains = 4
   )
+
+
+chooseCRANmirror(graphics=FALSE, ind=1) 
+
 posterior_model3b <- posterior_samples(model3b)
 tidy(posterior_model3b)
 
@@ -116,30 +120,114 @@ tidy(posterior_model3c)
 tidy(posterior_model3c_new_1)
 tidy(posterior_model3c_new_2)
 
-#6
-library("rstanarm")
+library(brms)
+
+# Fit the models for each prior variance
+model3c_a<- brm(
+  log_rgdppc_2000 ~ (rugged + dist_coast) * cont_africa + log_pop_1400,
+  data = data,
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, sqrt(0.0001)), class = "b"),
+    prior(gamma(0.5, 0.5), class = "sigma")
+  ),
+  save_pars= save_pars("all=TRUE"),
+  sample_prior ="yes",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  chains = 4
+)
+
+model3c_b <- brm(
+  log_rgdppc_2000 ~ (rugged + dist_coast) * cont_africa + log_pop_1400,
+  data = data,
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, sqrt(0.01)), class = "b"),
+    prior(gamma(0.5, 0.5), class = "sigma")),
+  save_pars= save_pars("all=TRUE"),
+  sample_prior ="yes",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  chains = 4
+)
+
+model3c_c <- brm(
+  log_rgdppc_2000 ~ (rugged + dist_coast) * cont_africa + log_pop_1400,
+  data = data,
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, sqrt(1)), class = "b"),
+    prior(gamma(0.5, 0.5), class = "sigma" )),
+  save_pars= save_pars("all=TRUE"),
+  sample_prior ="yes",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  chains = 4
+)
+
+model3c_d <- brm(
+  log_rgdppc_2000 ~ (rugged + dist_coast) * cont_africa + log_pop_1400,
+  data = data,
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, sqrt(100)), class = "b"),
+    prior(gamma(0.5, 0.5), class = "sigma" )),
+  save_pars= save_pars("all=TRUE"),
+  sample_prior ="yes",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  chains = 4
+)
+
+library("brms")
+library("loo")
 library("bridgesampling")
-model_prior_1 <- prior(normal(0, 1), class = "b")
-model_prior_2 <- prior(normal(0, 10), class = "b")
-model_prior_3 <- prior(normal(0, 100), class = "b")
-marg_likelihood_1 <- bridge_sampler(model3c, prior = model_prior_1)$logml
-marg_likelihood_2 <- bridge_sampler(model3c, prior = model_prior_2)$logml
-marg_likelihood_3 <- bridge_sampler(model3c, prior = model_prior_3)$logml
-marg_likelihood_4 <- bridge_sampler(model3c, prior = model_prior_4)$logml
-print(c(marg_likelihood_1,marg_likelihood_2, marg_likelihood_3, marg_likelihood_4))
 
-#7
+# Compute the marginal likelihood and lo for each model
 
-marg_likelihood_3a <- bridge_sampler(posterior_model_3a)$logml
-marg_likelihood_3b <- bridge_sampler(posterior_model_3b)$logml
-marg_likelihood_3c <- bridge_sampler(posterior_model_3c)$logml
-bayes_factor_3a_3b <- marg_likelihood_3a / marg_likelihood_3b
-bayes_factor_3a_3c <- marg_likelihood_3a / marg_likelihood_3c
-bayes_factor_3b_3c <- marg_likelihood_3b / marg_likelihood_3c
-print(c(bayes_factor_3a_3b, bayes_factor_3a_3c, bayes_factor_3b_3c))
+ml_model3c <- bridge_sampler(model3c, thin = 100)$logml
+ml_model3c_a <- bridge_sampler(model3c, thin = 100)$logml
+ml_model3c_b <- bridge_sampler(model3b, thin = 100)$logml
+ml_model3c_c <- bridge_sampler(model3c, thin = 100)$logml
+ml_model3c_d <- bridge_sampler(model3d, thin = 100)$logml
+
+# Instead, using the Loo
+
+library("loo")
+loo_model3c_a <- loo(model3c_a)
+estimates_model3c_a <- c(loo_model3c_a$looic, loo_model3c_a$elpd_loo, loo_model3c_a$p_loo)
+loo_model3c_b <- loo(model3c_b)
+estimates_model3c_b <- c(loo_model3c_b$looic, loo_model3c_b$elpd_loo, loo_model3c_b$p_loo)
+loo_model3c_c <- loo(model3c_c)
+estimates_model3c_c <- c(loo_model3c_c$looic, loo_model3c_c$elpd_loo, loo_model3c_c$p_loo)
+loo_model3c_d <- loo(model3c_d)
+estimates_model3c_d <- c(loo_model3c_d$looic, loo_model3c_d$elpd_loo, loo_model3c_d$p_loo)
+print(estimates_model3c_a)
+print(estimates_model3c_b)
+print(estimates_model3c_c)
+print(estimates_model3c_d)
+
+# 
+loo_model3a <- loo(model3a)
+estimates_model3a <- c(loo_model3a$looic, loo_model3a$elpd_loo, loo_model3a$p_loo)
+loo_model3b <- loo(model3b)
+estimates_model3b <- c(loo_model3b$looic, loo_model3b$elpd_loo, loo_model3b$p_loo)
+loo_model3c<- loo(model3c)
+estimates_model3c <- c(loo_model3c$looic, loo_model3c$elpd_loo, loo_model3c$p_loo)
+
+approx.bayesfactor_model3a_andmodel3b<- loo_model3a$looic/loo_model3b$looic
+print(approx.bayesfactor_model3a_andmodel3b)
+
+approx.bayesfactor_model3a_andmodel3c <- loo_model3a$looic/loo_model3c$looic
+print(approx.bayesfactor_model3a_andmodel3c)
+
+approx.bayesfactor_model3b_andmodel3c <- loo_model3b$looic/loo_model3c$looic
+print(approx.bayesfactor_model3b_andmodel3c)
+
 
 #8
-
+library("brms")
 predictions <- posterior_predict(model3c)
 subset_data <- data[1:100, ] 
 simulated_data <- posterior_linpred(model3c, newdata = subset_data)

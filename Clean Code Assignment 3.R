@@ -239,7 +239,7 @@ ggplot(data = subset_data, aes(x = rugged, y = log_rgdppc_2000)) +
   stat_summary(fun.data = mean_sdl, fun.args = list(mult = 2), color = "red", size = 1, aes(x = rugged, y = log_rgdppc_2000)) +
   labs(title = "Predictive Uncertainty", x = "rugged", y = "log_rgdppc_2000")
 
-##Question 2##
+### Macroeconometrics Exercise 2
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -354,9 +354,35 @@ for (prior in priors) {
   # Calculate log-likelihood
   log_likelihood <- ar_log_likelihood(mle_phi, D$u[-1], D$u_lag[-1])
   
+  # MCMC algorithm for estimating the posterior
+  n_iterations <- 10000
+  n_burn <- 1000
+  phi_samples <- numeric(n_iterations)
+  
+  # Initial value for phi
+  phi_samples[1] <- runif(1)
+  
+  for (i in 2:n_iterations) {
+    # Sample from proposal distribution (normal)
+    phi_star <- rnorm(1, mean = phi_samples[i-1], sd = 0.05)
+    
+    # Compute acceptance ratio
+    acceptance_ratio <- exp(ar_log_likelihood(phi_star, D$u[-1], D$u_lag[-1]) -
+                              ar_log_likelihood(phi_samples[i-1], D$u[-1], D$u_lag[-1]))
+    
+    # Accept or reject the sample
+    if (runif(1) < acceptance_ratio) {
+      phi_samples[i] <- phi_star
+    } else {
+      phi_samples[i] <- phi_samples[i-1]
+    }
+  }
+  
+  # Discard burn-in samples
+  phi_samples <- phi_samples[-(1:n_burn)]
+  
   # Plot posterior distribution
-  posterior_samples <- rbeta(10000, sum(D$u_lag[-1]) + shape1, length(D$u_lag[-1]) + shape2)
-  posterior_plot <- ggplot(data.frame(x = posterior_samples), aes(x = x)) +
+  posterior_plot <- ggplot(data.frame(x = phi_samples), aes(x = x)) +
     geom_density(fill = "lightblue", color = "blue") +
     labs(x = expression("u"[~-1]), title = paste("Posterior ", prior_name)) +
     theme_bw()
@@ -366,7 +392,7 @@ for (prior in priors) {
   
   # Print the results
   cat("Prior:", prior_name, "\n")
-  cat("Estimated phi:", mle_phi, "\n")
+  cat("Estimated phi:", mean(phi_samples), "\n")
   cat("Log-likelihood:", log_likelihood, "\n\n")
 }
 
@@ -376,4 +402,3 @@ posterior_arrange <- do.call(gridExtra::grid.arrange, posterior_plots)
 
 # Display the plots
 gridExtra::grid.arrange(prior_arrange, posterior_arrange, ncol = 2)
-
